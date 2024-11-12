@@ -33,12 +33,16 @@ jobs:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
         run: |
           npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
-          
+
+      - name: Print Cypress output for debugging
+        run: cat cypress_output.txt
+
       - name: Extract Cypress Dashboard URL
         id: extract_url
         run: |
-          CYPRESS_URL=$(grep -o 'https://dashboard.cypress.io/.*' cypress_output.txt | head -n 1)
+          CYPRESS_URL=$(grep -o 'https://dashboard.cypress.io/runs/[^ ]*' cypress_output.txt | head -n 1)
           echo "cypress_dashboard_url=$CYPRESS_URL" >> $GITHUB_ENV
+        continue-on-error: true
 
       - name: Get latest release URL
         id: get_release
