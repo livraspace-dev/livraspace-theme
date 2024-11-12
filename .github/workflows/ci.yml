@@ -27,8 +27,18 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests
-        run: npm test
+      - name: Run Cypress tests with recording
+        id: cypress
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+        run: |
+          npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
+          
+      - name: Extract Cypress Dashboard URL
+        id: extract_url
+        run: |
+          CYPRESS_URL=$(grep -o 'https://dashboard.cypress.io/.*' cypress_output.txt | head -n 1)
+          echo "cypress_dashboard_url=$CYPRESS_URL" >> $GITHUB_ENV
 
       - name: Get latest release URL
         id: get_release
@@ -41,6 +51,7 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.latest_release_url }}
+          CYPRESS_DASHBOARD_URL: ${{ env.cypress_dashboard_url }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
+          --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
