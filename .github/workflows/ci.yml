@@ -41,14 +41,12 @@ jobs:
         run: cat cypress_output.txt
 
       - name: Extract Cypress Dashboard URL
-        id: extract_url
         run: |
-          CYPRESS_URL=$(grep -oE 'https://dashboard.cypress.io/projects/[^ ]+/runs/[^ ]+' cypress_output.txt | head -n 1)
+          CYPRESS_URL=$(grep -oE 'https://dashboard\.cypress\.io/runs/[^\s]+' cypress_output.txt | head -n 1) || true
           echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
         shell: bash
 
       - name: Get latest release URL
-        id: get_release
         run: |
           LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
           echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
@@ -60,6 +58,11 @@ jobs:
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
         run: |
+          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
+            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del Dashboard de Cypress. Último release: $LATEST_RELEASE_URL"
+          else
+            MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL"
+          fi
           curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
+          --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK
         shell: bash
