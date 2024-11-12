@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install jq (JSON processor)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Run Cypress tests with recording
         id: cypress
         env:
@@ -40,22 +43,24 @@ jobs:
       - name: Extract Cypress Dashboard URL
         id: extract_url
         run: |
-          CYPRESS_URL=$(grep -o 'https://dashboard.cypress.io/runs/[^ ]*' cypress_output.txt | head -n 1)
-          echo "cypress_dashboard_url=$CYPRESS_URL" >> $GITHUB_ENV
-        continue-on-error: true
+          CYPRESS_URL=$(grep -oE 'https://dashboard.cypress.io/projects/[^ ]+/runs/[^ ]+' cypress_output.txt | head -n 1)
+          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
+        shell: bash
 
       - name: Get latest release URL
         id: get_release
         run: |
           LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
-          echo "latest_release_url=$LATEST_RELEASE_URL" >> $GITHUB_ENV
+          echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
+        shell: bash
 
       - name: Send notification to Slack
         if: always()
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-          LATEST_RELEASE_URL: ${{ env.latest_release_url }}
-          CYPRESS_DASHBOARD_URL: ${{ env.cypress_dashboard_url }}
+          LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
+          CYPRESS_DASHBOARD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
+        shell: bash
