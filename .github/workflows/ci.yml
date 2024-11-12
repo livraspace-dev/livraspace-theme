@@ -14,6 +14,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+      SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
 
     steps:
       - name: Checkout code
@@ -31,9 +34,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Run Cypress tests with recording
-        id: cypress
-        env:
-          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
         run: |
           npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
 
@@ -57,11 +57,9 @@ jobs:
       - name: Send notification to Slack
         if: always()
         env:
-          SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
-          CYPRESS_DASHBOARD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el link de cypress: $CYPRESS_DASHBOARD_KEY y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
+          --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
         shell: bash
