@@ -59,8 +59,9 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
+          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
           CYPRESS_DASHBOARD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
+          --data "{\"text\":\"El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL y el link de cypress: $CYPRESS_DASHBOARD_KEY y el último release: $LATEST_RELEASE_URL\"}" $SLACK_WEBHOOK
         shell: bash
