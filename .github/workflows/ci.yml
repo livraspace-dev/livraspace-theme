@@ -65,7 +65,7 @@ jobs:
         continue-on-error: true
 
       - name: Send notification to Slack
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
