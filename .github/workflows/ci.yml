@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }} # O usa secrets.CYPRESS_DASHBOARD_KEY si mantienes el nombre del secreto
+      CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
 
     steps:
@@ -45,7 +45,7 @@ jobs:
 
       - name: Extract Cypress Dashboard URL
         run: |
-          CYPRESS_URL=$(grep -oE 'https://dashboard\.cypress\.io/runs/[^\s]+' cypress_output.txt | head -n 1) || true
+          CYPRESS_URL=$(grep -Eo 'Recorded Run: https://cloud.cypress.io/projects/[^ ]+' cypress_output.txt | awk '{print $3}')
           echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
         shell: bash
 
@@ -58,6 +58,7 @@ jobs:
       - name: Send notification to Slack
         if: always()
         env:
+          SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
         run: |
