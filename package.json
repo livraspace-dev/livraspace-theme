@@ -6,18 +6,8 @@
   "scripts": {
     "test": "echo \"No tests specified\" && exit 0",
     "start": "npm run dev --open",
-    "db:setup": "prisma db push"
-  },
-  "prisma": {
-    "seed": "node prisma/reset.cjs"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "prisma": "^5.22.0"
-  },
-  "dependencies": {
-    "@prisma/client": "^5.22.0"
-  }
+  "license": "ISC"
 }
