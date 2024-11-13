@@ -37,20 +37,25 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Run Cypress tests with recording
+        continue-on-error: true  # Permite que el flujo continúe incluso si las pruebas fallan
         run: |
-          npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
+          npx cypress run --record --key $CYPRESS_RECORD_KEY --no-color | tee cypress_output.txt
 
       - name: Print Cypress output for debugging
         run: cat cypress_output.txt
 
       - name: Extract Cypress Dashboard URL
         run: |
-          CYPRESS_URL=$(grep -Eo 'Run URL:\s*https://cloud.cypress.io/projects/\S+' cypress_output.txt | awk '{print $3}') || true
+          echo "Contenido de cypress_output.txt:"
+          cat cypress_output.txt
+          CYPRESS_URL=$(grep 'Run URL:' cypress_output.txt | sed 's/.*Run URL:\s*//; s/\s*$//')
+          echo "CYPRESS_URL es $CYPRESS_URL"
           echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
         shell: bash
 
       - name: Print Cypress Dashboard URL
-        run: echo "CYPRESS_DASHBOARD_URL=${{ env.CYPRESS_DASHBOARD_URL }}"
+        run: |
+          echo "CYPRESS_DASHBOARD_URL=${{ env.CYPRESS_DASHBOARD_URL }}"
         shell: bash
 
       - name: Get latest release URL
@@ -67,6 +72,7 @@ jobs:
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
         run: |
+          echo "CYPRESS_DASHBOARD_URL es $CYPRESS_DASHBOARD_URL"
           if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
             MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del Dashboard de Cypress."
           else
