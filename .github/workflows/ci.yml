@@ -38,11 +38,7 @@ jobs:
 
       - name: Run Cypress tests with recording
         continue-on-error: true
-        run: |
-          npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
-
-      - name: Print Cypress output for debugging
-        run: cat cypress_output.txt
+        run: npm run start:test
 
       - name: Extract Cypress Dashboard URL
         run: |
@@ -65,7 +61,10 @@ jobs:
         continue-on-error: true
 
       - name: Send notification to Slack
-        if: always()
+        if: always() && (
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
+        )
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
