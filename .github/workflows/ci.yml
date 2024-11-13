@@ -45,7 +45,7 @@ jobs:
 
       - name: Extract Cypress Dashboard URL
         run: |
-          CYPRESS_URL=$(grep -Eo 'Recorded Run: https://cloud.cypress.io/projects/[^ ]+' cypress_output.txt | awk '{print $3}')
+          CYPRESS_URL=$(grep -Eo 'Run URL:\s*https://cloud.cypress.io/projects/\S+' cypress_output.txt | awk '{print $3}') || true
           echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
         shell: bash
 
@@ -59,10 +59,6 @@ jobs:
           echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
         shell: bash
         continue-on-error: true
-
-      - name: Print latest release URL
-        run: echo "LATEST_RELEASE_URL=${{ env.LATEST_RELEASE_URL }}"
-        shell: bash
 
       - name: Send notification to Slack
         if: always()
