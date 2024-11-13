@@ -1,1 +1,1 @@
-# livraspace-theme.
+# livraspace-theme
