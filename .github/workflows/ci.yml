@@ -56,7 +56,7 @@ jobs:
         if: always()
         env:
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
-          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
+          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_KEY }}
         run: |
           if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
             MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del Dashboard de Cypress. Último release: $LATEST_RELEASE_URL"
