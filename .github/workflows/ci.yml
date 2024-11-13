@@ -37,7 +37,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Run Cypress tests with recording
-        continue-on-error: true  # Permite que el flujo continúe incluso si las pruebas fallan
+        continue-on-error: true
         run: |
           npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
 
@@ -46,9 +46,7 @@ jobs:
 
       - name: Extract Cypress Dashboard URL
         run: |
-          # Eliminar códigos de color del output
           CLEAN_OUTPUT=$(sed -r 's/\x1B\[[0-9;]*[mG]//g' cypress_output.txt)
-          # Extraer la URL del Dashboard
           CYPRESS_URL=$(echo "$CLEAN_OUTPUT" | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
           echo "CYPRESS_URL es $CYPRESS_URL"
           echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
