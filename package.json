@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"No tests specified\" && exit 0",
-    "start": "npm run dev --open",
+    "start": "npm run dev --open"
   },
   "keywords": [],
   "author": "",
