@@ -8,25 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
+      CYPRESS_PROJECT_ID: "ivi6aw"  # Reemplaza con tu Project ID real
 
     steps:
       - name: Install jq (JSON processor)
         run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Get latest Cypress Dashboard URL
-        env:
-          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
-        run: |
-          PROJECT_ID="ivi6aw"
-          AUTH_TOKEN="${CYPRESS_RECORD_KEY}"
-          # Obtén el ID del último run
-          LAST_RUN_ID=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" \
-            https://api.cypress.io/projects/$PROJECT_ID/runs \
-            | jq -r '.runs[0].id')
-          # Construye la URL del Dashboard
-          CYPRESS_DASHBOARD_URL="https://dashboard.cypress.io/projects/$PROJECT_ID/runs/$LAST_RUN_ID"
-          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
-        shell: bash
 
       - name: Get latest release URL
         run: |
@@ -38,9 +24,9 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
-          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
+          CYPRESS_DASHBOARD_URL: "https://dashboard.cypress.io/projects/${{ env.CYPRESS_PROJECT_ID }}"
         run: |
-          MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados del último test de Cypress: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL"
+          MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas en el Dashboard de Cypress: $CYPRESS_DASHBOARD_URL y el último release: $LATEST_RELEASE_URL"
           curl -X POST -H 'Content-type: application/json' \
           --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK
         shell: bash
