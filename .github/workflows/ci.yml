@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_DASHBOARD_URL: ${{ secrets.CYPRESS_DASHBOARD_URL }} # Opcional: asigna aquí una URL fija si tienes una clave secreta
+      CYPRESS_DASHBOARD_URL: ${{ secrets.CYPRESS_DASHBOARD_URL }}
 
     steps:
       - name: Checkout code
@@ -24,33 +24,6 @@ jobs:
 
       - name: Install jq (JSON processor)
         run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Run Cypress tests with recording (URL only)
-        continue-on-error: true
-        run: |
-          npx cypress run --record --parallel --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
-
-      - name: Extract Cypress Dashboard URL
-        run: |
-          # Imprime el contenido de cypress_output.txt para depurar
-          echo "Contenido de cypress_output.txt:"
-          cat cypress_output.txt
-
-          # Elimina caracteres ANSI
-          CLEAN_OUTPUT=$(sed 's/\x1B\[[0-9;]*[mG]//g' cypress_output.txt)
-          
-          # Extrae la URL del Dashboard de Cypress
-          CYPRESS_URL=$(echo "$CLEAN_OUTPUT" | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
-
-          # Verifica si CYPRESS_URL tiene contenido antes de continuar
-          if [ -z "$CYPRESS_URL" ]; then
-            echo "No se encontró la URL del Dashboard de Cypress."
-            CYPRESS_URL="URL no disponible"  # Asigna un valor por defecto si no se encuentra la URL
-          fi
-
-          echo "CYPRESS_URL es $CYPRESS_URL"
-          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
-        shell: bash
 
       - name: Get latest release URL
         run: |
