@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_PROJECT_ID: 'ivi6aw'  # Asegúrate de que el ID esté correctamente asignado
+      CYPRESS_PROJECT_ID: 'ivi6aw'
       CYPRESS_API_TOKEN: ${{ secrets.CYPRESS_API_TOKEN }}
 
     steps:
@@ -19,28 +19,29 @@ jobs:
         run: |
           echo "CYPRESS_PROJECT_ID: $CYPRESS_PROJECT_ID"
 
-          RESPONSE=$(curl -s -H "Authorization: Bearer $CYPRESS_API_TOKEN" "https://api.cypress.io/v1/projects/$CYPRESS_PROJECT_ID/runs?limit=1")
+          RESPONSE=$(curl -s -H "Authorization: Bearer $CYPRESS_API_TOKEN" \
+          "https://cloud.cypress.io/api/v1/projects/$CYPRESS_PROJECT_ID/runs?per_page=1")
 
           echo "Respuesta de la API de Cypress:"
           echo "$RESPONSE"
 
           # Verificar si la respuesta contiene un error
-          if echo "$RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+          if echo "$RESPONSE" | jq -e '.errors' >/dev/null 2>&1; then
             echo "Error recibido de la API de Cypress:"
-            echo "$RESPONSE" | jq '.error'
+            echo "$RESPONSE" | jq '.errors'
             exit 1
           fi
 
-          # Intentar parsear el ID del último run
-          LATEST_RUN_ID=$(echo "$RESPONSE" | jq -r '.runs[0].id')
+          # Intentar parsear el número del último run
+          LATEST_RUN_NUMBER=$(echo "$RESPONSE" | jq -r '.data[0].buildNumber')
 
-          # Verificar si se obtuvo un ID válido
-          if [ -z "$LATEST_RUN_ID" ] || [ "$LATEST_RUN_ID" = "null" ]; then
-            echo "No se pudo obtener el ID del último run de Cypress."
+          # Verificar si se obtuvo un número de run válido
+          if [ -z "$LATEST_RUN_NUMBER" ] || [ "$LATEST_RUN_NUMBER" = "null" ]; then
+            echo "No se pudo obtener el número del último run de Cypress."
             exit 1
           else
             # Construir la URL del Dashboard
-            CYPRESS_DASHBOARD_URL="https://dashboard.cypress.io/projects/$CYPRESS_PROJECT_ID/runs/$LATEST_RUN_ID"
+            CYPRESS_DASHBOARD_URL="https://cloud.cypress.io/projects/$CYPRESS_PROJECT_ID/runs/$LATEST_RUN_NUMBER/overview"
             echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
           fi
         shell: bash
