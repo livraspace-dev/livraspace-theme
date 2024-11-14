@@ -1,34 +1,40 @@
-name: CI Workflow
+name: Notify Slack
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  notify:
     runs-on: ubuntu-latest
     env:
-      SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_PROJECT_ID: ${{ secrets.CYPRESS_PROJECT_ID }}
       CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
+      SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
 
     steps:
       - name: Install jq (JSON processor)
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Get latest release URL
-        run: |
-          LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
-          echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
-        shell: bash
-
       - name: Get latest Cypress test URL
         run: |
-          # Obtener el ID del proyecto y el token de acceso
-          CYPRESS_PROJECT_ID="${{ env.CYPRESS_PROJECT_ID }}"
-          CYPRESS_RECORD_KEY="${{ env.CYPRESS_RECORD_KEY }}"
+          # Asignar el ID de proyecto de Cypress
+          CYPRESS_PROJECT_ID="${{ secrets.CYPRESS_PROJECT_ID }}"
+          echo "CYPRESS_PROJECT_ID: $CYPRESS_PROJECT_ID"
 
-          # Obtener el ID del último run
-          LATEST_RUN_ID=$(curl -s -u $CYPRESS_RECORD_KEY: https://api.cypress.io/v1/projects/$CYPRESS_PROJECT_ID/runs | jq -r '.[0].id')
+          # Obtener el ID del último run de Cypress usando la API
+          RESPONSE=$(curl -s -H "Authorization: Bearer $CYPRESS_RECORD_KEY" "https://api.cypress.io/v1/projects/$CYPRESS_PROJECT_ID/runs?limit=1")
+
+          echo "Respuesta de la API de Cypress:"
+          echo "$RESPONSE"
+
+          # Verificar si la respuesta contiene un error
+          if echo "$RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+            echo "Error recibido de la API de Cypress:"
+            echo "$RESPONSE" | jq '.error'
+            exit 1
+          fi
+
+          # Intentar parsear el ID del último run
+          LATEST_RUN_ID=$(echo "$RESPONSE" | jq -r '.data[0].id')
 
           # Verificar si se obtuvo un ID válido
           if [ -z "$LATEST_RUN_ID" ] || [ "$LATEST_RUN_ID" = "null" ]; then
@@ -40,18 +46,27 @@ jobs:
           fi
         shell: bash
 
+      - name: Get latest release URL
+        run: |
+          LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
+          echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
+        shell: bash
+        continue-on-error: true
+
       - name: Send notification to Slack
         env:
-          SLACK_WEBHOOK: ${{ env.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
         run: |
-          MESSAGE="El último release está disponible en: $LATEST_RELEASE_URL"
-
-          if [ -n "$CYPRESS_DASHBOARD_URL" ]; then
-            MESSAGE="$MESSAGE. El último test de Cypress está disponible en: $CYPRESS_DASHBOARD_URL"
+          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
+            MESSAGE="No se pudo obtener la URL del último test de Cypress."
           else
-            MESSAGE="$MESSAGE. No se pudo obtener la URL del último test de Cypress."
+            MESSAGE="El último test de Cypress está disponible en: $CYPRESS_DASHBOARD_URL"
+          fi
+
+          if [ -n "$LATEST_RELEASE_URL" ]; then
+            MESSAGE="$MESSAGE. El último release está disponible en: $LATEST_RELEASE_URL"
           fi
 
           curl -X POST -H 'Content-type: application/json' \
