@@ -37,15 +37,25 @@ jobs:
             echo "$CYPRESS_URL" > cypress_url_cache.txt
           fi
 
-      - name: Load last Cypress Dashboard URL from cache
+      - name: Save Cypress Dashboard URL artifact
+        if: github.event_name != 'workflow_dispatch' && -f cypress_url_cache.txt
+        uses: actions/upload-artifact@v3
+        with:
+          name: cypress-url
+          path: cypress_url_cache.txt
+
+      - name: Load Cypress Dashboard URL from artifact
         if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v3
+        with:
+          name: cypress-url
+          path: .
+
+      - name: Set Cypress Dashboard URL environment variable
+        if: github.event_name == 'workflow_dispatch' && -f cypress_url_cache.txt
         run: |
-          if [ -f cypress_url_cache.txt ]; then
-            CYPRESS_DASHBOARD_URL=$(cat cypress_url_cache.txt)
-            echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
-          else
-            echo "No se encontró una URL de Cypress previa."
-          fi
+          CYPRESS_DASHBOARD_URL=$(cat cypress_url_cache.txt)
+          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
 
       - name: Get latest release URL
         run: |
