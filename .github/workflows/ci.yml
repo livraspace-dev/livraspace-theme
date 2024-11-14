@@ -34,7 +34,16 @@ jobs:
         run: |
           # Elimina caracteres ANSI sin usar la opción -r
           CLEAN_OUTPUT=$(sed 's/\x1B\[[0-9;]*[mG]//g' cypress_output.txt)
+          
+          # Extrae la URL del Dashboard de Cypress
           CYPRESS_URL=$(echo "$CLEAN_OUTPUT" | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
+
+          # Verifica si CYPRESS_URL tiene contenido antes de continuar
+          if [ -z "$CYPRESS_URL" ]; then
+            echo "No se encontró la URL del Dashboard de Cypress."
+            exit 1  # Sale con un error si no se encuentra la URL
+          fi
+
           echo "CYPRESS_URL es $CYPRESS_URL"
           echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
         shell: bash
