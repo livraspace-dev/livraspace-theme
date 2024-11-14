@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_DASHBOARD_URL: ${{ secrets.CYPRESS_DASHBOARD_URL }}
+      CYPRESS_DASHBOARD_URL: "https://cloud.cypress.io/projects/ivi6aw/runs"  # Reemplaza {projectId} con el ID de tu proyecto
 
     steps:
       - name: Checkout code
