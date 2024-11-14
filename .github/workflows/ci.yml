@@ -1,49 +1,57 @@
-name: Notify Slack
+name: CI Workflow
 
 on:
   workflow_dispatch:
 
 jobs:
-  notify:
+  build:
     runs-on: ubuntu-latest
     env:
+      CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_PROJECT_ID: 'ivi6aw'
-      CYPRESS_API_TOKEN: ${{ secrets.CYPRESS_API_TOKEN }}
+      CYPRESS_DASHBOARD_PROJECT_URL: 'https://cloud.cypress.io/projects/ivi6aw'
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify Cypress installation
+        run: npx cypress --version
+
       - name: Install jq (JSON processor)
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Get latest Cypress test URL
+      - name: Run Cypress tests with recording
+        if: github.event_name != 'workflow_dispatch'
+        continue-on-error: true
         run: |
-          echo "CYPRESS_PROJECT_ID: $CYPRESS_PROJECT_ID"
+          npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
 
-          RESPONSE=$(curl -s -H "Authorization: Bearer $CYPRESS_API_TOKEN" \
-          "https://cloud.cypress.io/api/v1/projects/$CYPRESS_PROJECT_ID/runs?per_page=1")
+      - name: Print Cypress output for debugging
+        if: github.event_name != 'workflow_dispatch'
+        run: cat cypress_output.txt
 
-          echo "Respuesta de la API de Cypress:"
-          echo "$RESPONSE"
+      - name: Extract Cypress Dashboard URL
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          CLEAN_OUTPUT=$(sed -r 's/\x1B\[[0-9;]*[mG]//g' cypress_output.txt)
+          CYPRESS_URL=$(echo "$CLEAN_OUTPUT" | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
+          echo "CYPRESS_URL es $CYPRESS_URL"
+          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
+        shell: bash
 
-          # Verificar si la respuesta contiene un error
-          if echo "$RESPONSE" | jq -e '.errors' >/dev/null 2>&1; then
-            echo "Error recibido de la API de Cypress:"
-            echo "$RESPONSE" | jq '.errors'
-            exit 1
-          fi
-
-          # Intentar parsear el número del último run
-          LATEST_RUN_NUMBER=$(echo "$RESPONSE" | jq -r '.data[0].buildNumber')
-
-          # Verificar si se obtuvo un número de run válido
-          if [ -z "$LATEST_RUN_NUMBER" ] || [ "$LATEST_RUN_NUMBER" = "null" ]; then
-            echo "No se pudo obtener el número del último run de Cypress."
-            exit 1
-          else
-            # Construir la URL del Dashboard
-            CYPRESS_DASHBOARD_URL="https://cloud.cypress.io/projects/$CYPRESS_PROJECT_ID/runs/$LATEST_RUN_NUMBER/overview"
-            echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
-          fi
+      - name: Print Cypress Dashboard URL
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "CYPRESS_DASHBOARD_URL=${{ env.CYPRESS_DASHBOARD_URL }}"
         shell: bash
 
       - name: Get latest release URL
@@ -58,15 +66,20 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
-            MESSAGE="No se pudo obtener la URL del último test de Cypress."
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            MESSAGE="El flujo de trabajo de CI se ha ejecutado manualmente. No se han ejecutado nuevas pruebas. Puedes ver los resultados de las pruebas anteriores en el Dashboard de Cypress: $CYPRESS_DASHBOARD_PROJECT_URL"
           else
-            MESSAGE="El último test de Cypress está disponible en: $CYPRESS_DASHBOARD_URL"
+            if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
+              MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del Dashboard de Cypress."
+            else
+              MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL"
+            fi
           fi
 
           if [ -n "$LATEST_RELEASE_URL" ]; then
-            MESSAGE="$MESSAGE. El último release está disponible en: $LATEST_RELEASE_URL"
+            MESSAGE="$MESSAGE y el último release: $LATEST_RELEASE_URL"
           fi
 
           curl -X POST -H 'Content-type: application/json' \
