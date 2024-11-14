@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
-      SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
 
     steps:
       - name: Checkout code
@@ -33,9 +32,6 @@ jobs:
       - name: Verify Cypress installation
         run: npx cypress --version
 
-      - name: Install jq (JSON processor)
-        run: sudo apt-get update && sudo apt-get install -y jq
-
       - name: Run Cypress tests with recording
         continue-on-error: true
         run: |
@@ -43,44 +39,3 @@ jobs:
 
       - name: Print Cypress output for debugging
         run: cat cypress_output.txt
-
-      - name: Extract Cypress Dashboard URL
-        run: |
-          CLEAN_OUTPUT=$(sed -r 's/\x1B\[[0-9;]*[mG]//g' cypress_output.txt)
-          CYPRESS_URL=$(echo "$CLEAN_OUTPUT" | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
-          echo "CYPRESS_URL es $CYPRESS_URL"
-          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
-        shell: bash
-
-      - name: Print Cypress Dashboard URL
-        run: |
-          echo "CYPRESS_DASHBOARD_URL=${{ env.CYPRESS_DASHBOARD_URL }}"
-        shell: bash
-
-      - name: Get latest release URL
-        run: |
-          LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
-          echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
-        shell: bash
-        continue-on-error: true
-
-      - name: Send notification to Slack
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-          LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
-          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
-        run: |
-          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
-            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del Dashboard de Cypress."
-          else
-            MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL"
-          fi
-
-          if [ -n "$LATEST_RELEASE_URL" ]; then
-            MESSAGE="$MESSAGE y el último release: $LATEST_RELEASE_URL"
-          fi
-
-          curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK
-        shell: bash
