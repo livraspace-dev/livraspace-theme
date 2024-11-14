@@ -23,14 +23,14 @@ jobs:
       - name: Install jq (JSON processor)
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Extract last Cypress Dashboard URL
+      - name: Get latest workflow run URL
         run: |
-          LAST_CYPRESS_URL=$(gh run view --json logs_url -q '.logs_url' | xargs curl -s | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
-          if [ -z "$LAST_CYPRESS_URL" ]; then
-            echo "No se encontró una URL del último test de Cypress."
+          LAST_RUN_URL=$(gh run view --json url -q '.url')
+          if [ -z "$LAST_RUN_URL" ]; then
+            echo "No se encontró una URL del último run de GitHub Actions."
           else
-            echo "Última Cypress URL: $LAST_CYPRESS_URL"
-            echo "CYPRESS_DASHBOARD_URL=$LAST_CYPRESS_URL" >> $GITHUB_ENV
+            echo "Última Run URL: $LAST_RUN_URL"
+            echo "GITHUB_RUN_URL=$LAST_RUN_URL" >> $GITHUB_ENV
           fi
         shell: bash
 
@@ -46,12 +46,12 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
-          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
+          GITHUB_RUN_URL: ${{ env.GITHUB_RUN_URL }}
         run: |
-          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
-            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del Dashboard de Cypress."
+          if [ -z "$GITHUB_RUN_URL" ]; then
+            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del último run de GitHub Actions."
           else
-            MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL"
+            MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas en GitHub Actions: $GITHUB_RUN_URL"
           fi
 
           if [ -n "$LATEST_RELEASE_URL" ]; then
