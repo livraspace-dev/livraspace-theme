@@ -2,13 +2,14 @@ name: Notify Slack
 
 on:
   workflow_dispatch:
- 
+
 jobs:
   notify:
     runs-on: ubuntu-latest
     env:
-      CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
+      CYPRESS_PROJECT_ID: 'ivi6aw'  # Asegúrate de que el ID esté correctamente asignado
+      CYPRESS_API_TOKEN: ${{ secrets.CYPRESS_API_TOKEN }}
 
     steps:
       - name: Install jq (JSON processor)
@@ -16,12 +17,9 @@ jobs:
 
       - name: Get latest Cypress test URL
         run: |
-          # Asignar el ID de proyecto de Cypress
-          CYPRESS_PROJECT_ID="${{ secrets.CYPRESS_PROJECT_ID }}"
           echo "CYPRESS_PROJECT_ID: $CYPRESS_PROJECT_ID"
 
-          # Obtener el ID del último run de Cypress usando la API
-          RESPONSE=$(curl -s -H "Authorization: Bearer $CYPRESS_RECORD_KEY" "https://api.cypress.io/v1/projects/$CYPRESS_PROJECT_ID/runs?limit=1")
+          RESPONSE=$(curl -s -H "Authorization: Bearer $CYPRESS_API_TOKEN" "https://api.cypress.io/v1/projects/$CYPRESS_PROJECT_ID/runs?limit=1")
 
           echo "Respuesta de la API de Cypress:"
           echo "$RESPONSE"
@@ -34,11 +32,12 @@ jobs:
           fi
 
           # Intentar parsear el ID del último run
-          LATEST_RUN_ID=$(echo "$RESPONSE" | jq -r '.data[0].id')
+          LATEST_RUN_ID=$(echo "$RESPONSE" | jq -r '.runs[0].id')
 
           # Verificar si se obtuvo un ID válido
           if [ -z "$LATEST_RUN_ID" ] || [ "$LATEST_RUN_ID" = "null" ]; then
             echo "No se pudo obtener el ID del último run de Cypress."
+            exit 1
           else
             # Construir la URL del Dashboard
             CYPRESS_DASHBOARD_URL="https://dashboard.cypress.io/projects/$CYPRESS_PROJECT_ID/runs/$LATEST_RUN_ID"
