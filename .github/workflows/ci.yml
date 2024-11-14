@@ -1,6 +1,14 @@
 name: CI Workflow
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -55,24 +63,42 @@ jobs:
           CYPRESS_PROJECT_ID: ${{ env.CYPRESS_PROJECT_ID }}
         run: |
           set -x  # Habilita el modo de depuración
-          QUERY=$(jq -n --arg projectId "$CYPRESS_PROJECT_ID" '{"query": "query { project(id: \"\($projectId)\") { runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { edges { node { id runUrl status } } } } }"}')
+          # Construir la consulta GraphQL
+          QUERY=$(jq -n --arg projectId "$CYPRESS_PROJECT_ID" '{
+            "query": "query { project(id: \"\($projectId)\") { runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { edges { node { runUrl status id } } } } }"
+          }')
           echo "GraphQL Query: $QUERY"
+
+          # Realizar la solicitud a la API
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $CYPRESS_API_TOKEN" \
             -d "$QUERY" \
             https://cloud.cypress.io/graphql)
           echo "API Response: $RESPONSE"
+
+          # Verificar si hay errores en la respuesta
           ERRORS=$(echo "$RESPONSE" | jq -r '.errors')
           if [ "$ERRORS" != "null" ]; then
             echo "Error al obtener los datos de la API de Cypress:"
             echo "$ERRORS"
             exit 1
           fi
+
+          # Imprimir los datos de los runs
           RUNS_DATA=$(echo "$RESPONSE" | jq '.data.project.runs')
           echo "Runs data: $RUNS_DATA"
-          RUN_URL=$(echo "$RESPONSE" | jq -r '.data.project.runs.edges[0].node.runUrl')
-          echo "Último RUN_URL: $RUN_URL"
+
+          # Extraer el runUrl
+          RUN_URL=$(echo "$RESPONSE" | jq -r '.data.project.runs.edges[0].node.runUrl // empty')
+          if [ -z "$RUN_URL" ]; then
+            echo "No se encontró runUrl en la respuesta de la API."
+            RUN_URL="null"
+          else
+            echo "Último RUN_URL: $RUN_URL"
+          fi
+
+          # Establecer la variable de entorno para usarla en pasos posteriores
           echo "CYPRESS_DASHBOARD_URL=$RUN_URL" >> $GITHUB_ENV
         shell: bash
 
@@ -89,7 +115,7 @@ jobs:
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
         run: |
-          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
+          if [ -z "$CYPRESS_DASHBOARD_URL" ] || [ "$CYPRESS_DASHBOARD_URL" = "null" ]; then
             MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del último test en Cypress."
           else
             MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados del último test: $CYPRESS_DASHBOARD_URL"
