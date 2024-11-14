@@ -51,25 +51,15 @@ jobs:
       - name: Get latest Cypress run URL
         if: github.event_name == 'workflow_dispatch'
         env:
-          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
+          CYPRESS_API_TOKEN: ${{ secrets.CYPRESS_API_TOKEN }}
           CYPRESS_PROJECT_ID: ${{ env.CYPRESS_PROJECT_ID }}
         run: |
-          QUERY='{"query":"query { 
-            project(id: \"'$CYPRESS_PROJECT_ID'\") { 
-              runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { 
-                edges { 
-                  node { 
-                    runUrl 
-                  } 
-                } 
-              } 
-            } 
-          }"}'
+          QUERY=$(jq -n --arg projectId "$CYPRESS_PROJECT_ID" '{"query": "query { project(id: \""$projectId"\") { runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { edges { node { runUrl } } } } }"}')
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $CYPRESS_RECORD_KEY" \
+            -H "Authorization: Bearer $CYPRESS_API_TOKEN" \
             -d "$QUERY" \
-            https://dashboard.cypress.io/graphql)
+            https://cloud.cypress.io/graphql)
           echo "Response: $RESPONSE"
           RUN_URL=$(echo "$RESPONSE" | jq -r '.data.project.runs.edges[0].node.runUrl')
           echo "Último RUN_URL: $RUN_URL"
@@ -88,7 +78,6 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
             MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del último test en Cypress."
