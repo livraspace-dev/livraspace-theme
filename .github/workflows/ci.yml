@@ -9,7 +9,7 @@ jobs:
     env:
       CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_DASHBOARD_PROJECT_URL: 'https://cloud.cypress.io/projects/ivi6aw'
+      CYPRESS_PROJECT_ID: 'ivi6aw'  # Reemplaza con tu Project ID de Cypress
 
     steps:
       - name: Checkout code
@@ -48,10 +48,32 @@ jobs:
           echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
         shell: bash
 
-      - name: Print Cypress Dashboard URL
-        if: github.event_name != 'workflow_dispatch'
+      - name: Get latest Cypress run URL
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
+          CYPRESS_PROJECT_ID: ${{ env.CYPRESS_PROJECT_ID }}
         run: |
-          echo "CYPRESS_DASHBOARD_URL=${{ env.CYPRESS_DASHBOARD_URL }}"
+          QUERY='{"query":"query { 
+            project(id: \"'$CYPRESS_PROJECT_ID'\") { 
+              runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { 
+                edges { 
+                  node { 
+                    runUrl 
+                  } 
+                } 
+              } 
+            } 
+          }"}'
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $CYPRESS_RECORD_KEY" \
+            -d "$QUERY" \
+            https://dashboard.cypress.io/graphql)
+          echo "Response: $RESPONSE"
+          RUN_URL=$(echo "$RESPONSE" | jq -r '.data.project.runs.edges[0].node.runUrl')
+          echo "Último RUN_URL: $RUN_URL"
+          echo "CYPRESS_DASHBOARD_URL=$RUN_URL" >> $GITHUB_ENV
         shell: bash
 
       - name: Get latest release URL
@@ -68,14 +90,10 @@ jobs:
           CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            MESSAGE="El flujo de trabajo de CI se ha ejecutado manualmente. No se han ejecutado nuevas pruebas. Puedes ver los resultados de las pruebas anteriores en el Dashboard de Cypress: $CYPRESS_DASHBOARD_PROJECT_URL"
+          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
+            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del último test en Cypress."
           else
-            if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
-              MESSAGE="El flujo de trabajo de CI se ha completado, pero no se pudo obtener la URL del Dashboard de Cypress."
-            else
-              MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados de las pruebas: $CYPRESS_DASHBOARD_URL"
-            fi
+            MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados del último test: $CYPRESS_DASHBOARD_URL"
           fi
 
           if [ -n "$LATEST_RELEASE_URL" ]; then
