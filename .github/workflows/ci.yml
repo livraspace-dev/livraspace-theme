@@ -9,6 +9,7 @@ jobs:
     env:
       CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -24,7 +25,6 @@ jobs:
 
       - name: Extract last Cypress Dashboard URL
         run: |
-          # Extracts the Cypress Dashboard URL from the latest workflow run logs if available
           LAST_CYPRESS_URL=$(gh run view --json logs_url -q '.logs_url' | xargs curl -s | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
           if [ -z "$LAST_CYPRESS_URL" ]; then
             echo "No se encontró una URL del último test de Cypress."
