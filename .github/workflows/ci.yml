@@ -54,7 +54,7 @@ jobs:
           CYPRESS_API_TOKEN: ${{ secrets.CYPRESS_API_TOKEN }}
           CYPRESS_PROJECT_ID: ${{ env.CYPRESS_PROJECT_ID }}
         run: |
-          QUERY=$(jq -n --arg projectId "$CYPRESS_PROJECT_ID" '{"query": "query { project(id: \""$projectId"\") { runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { edges { node { runUrl } } } } }"}')
+          QUERY=$(jq -n --arg projectId "$CYPRESS_PROJECT_ID" '{"query": "query { project(id: \"\($projectId)\") { runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { edges { node { runUrl } } } } }"}')
           RESPONSE=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $CYPRESS_API_TOKEN" \
