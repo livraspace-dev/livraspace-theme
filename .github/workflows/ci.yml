@@ -12,28 +12,65 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Verify Cypress installation
-        run: npx cypress --version
-
-      - name: Run Cypress tests with recording
-        continue-on-error: true
+      - name: Set up environment
         run: |
-          npx cypress run --record --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
+          sudo apt-get update
+          sudo apt-get install -y jq
 
-      - name: Print Cypress output for debugging
-        run: cat cypress_output.txt
+      - name: Get latest Cypress Dashboard run URL
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
+        run: |
+          PROJECT_ID="ivi6aw"
+
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $CYPRESS_RECORD_KEY" \
+            "https://dashboard.cypress.io/api/v1/projects/$PROJECT_ID/runs?limit=1")
+
+          CYPRESS_DASHBOARD_URL=$(echo "$RESPONSE" | jq -r '.runs[0].runUrl')
+
+          if [ -z "$CYPRESS_DASHBOARD_URL" ] || [ "$CYPRESS_DASHBOARD_URL" = "null" ]; then
+            echo "No se pudo obtener la URL del último run de Cypress."
+            echo "CYPRESS_DASHBOARD_URL=" >> $GITHUB_ENV
+          else
+            echo "Último run de Cypress: $CYPRESS_DASHBOARD_URL"
+            echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
+          fi
+
+      - name: Get latest release URL
+        run: |
+          LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
+
+          if [ -z "$LATEST_RELEASE_URL" ] || [ "$LATEST_RELEASE_URL" = "null" ]; then
+            echo "No se pudo obtener la URL del último release."
+            echo "LATEST_RELEASE_URL=" >> $GITHUB_ENV
+          else
+            echo "Último release: $LATEST_RELEASE_URL"
+            echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
+          fi
+
+      - name: Send notification to Slack
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
+          LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
+          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
+        run: |
+          MESSAGE=""
+
+          if [ -n "$CYPRESS_DASHBOARD_URL" ]; then
+            MESSAGE="Revisa el último run de Cypress: $CYPRESS_DASHBOARD_URL"
+          else
+            MESSAGE="No se pudo obtener la URL del último run de Cypress."
+          fi
+
+          if [ -n "$LATEST_RELEASE_URL" ]; then
+            MESSAGE="$MESSAGE\nÚltimo release: $LATEST_RELEASE_URL"
+          else
+            MESSAGE="$MESSAGE\nNo se pudo obtener la URL del último release."
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK
+        shell: bash
