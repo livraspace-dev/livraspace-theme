@@ -25,6 +25,19 @@ jobs:
       - name: Install jq (JSON processor)
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      - name: Run Cypress tests with recording (URL only)
+        continue-on-error: true
+        run: |
+          npx cypress run --record --parallel --key $CYPRESS_RECORD_KEY | tee cypress_output.txt
+
+      - name: Extract Cypress Dashboard URL
+        run: |
+          CLEAN_OUTPUT=$(sed -r 's/\x1B\[[0-9;]*[mG]//g' cypress_output.txt)
+          CYPRESS_URL=$(echo "$CLEAN_OUTPUT" | grep 'Run URL:' | sed 's/.*Run URL:\s*//; s/\s*$//')
+          echo "CYPRESS_URL es $CYPRESS_URL"
+          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_URL" >> $GITHUB_ENV
+        shell: bash
+
       - name: Get latest release URL
         run: |
           LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
