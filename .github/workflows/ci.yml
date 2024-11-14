@@ -1,6 +1,14 @@
 name: CI Workflow
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -55,6 +63,14 @@ jobs:
           CYPRESS_PROJECT_ID: ${{ env.CYPRESS_PROJECT_ID }}
         run: |
           set -x  # Habilita el modo de depuración
+          # Verificar si CYPRESS_API_TOKEN está disponible
+          if [ -z "$CYPRESS_API_TOKEN" ]; then
+            echo "Error: CYPRESS_API_TOKEN está vacío o no está definido."
+            exit 1
+          else
+            echo "CYPRESS_API_TOKEN está disponible."
+          fi
+
           # Construir la consulta GraphQL
           QUERY=$(jq -n --arg projectId "$CYPRESS_PROJECT_ID" '{
             "query": "query { project(id: \"\($projectId)\") { runs(first: 1, orderBy: {direction: DESC, field: CREATED_AT}) { edges { node { runUrl status id } } } } }"
