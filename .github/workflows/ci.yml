@@ -17,7 +17,7 @@ jobs:
         env:
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_DASHBOARD_KEY }}
         run: |
-          PROJECT_ID="tu_project_id_de_cypress"
+          PROJECT_ID="ivi6aw"
           AUTH_TOKEN="${CYPRESS_RECORD_KEY}"
           # Obtén el ID del último run
           LAST_RUN_ID=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" \
