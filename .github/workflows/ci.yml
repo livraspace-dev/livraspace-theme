@@ -32,7 +32,11 @@ jobs:
 
       - name: Extract Cypress Dashboard URL
         run: |
-          # Elimina caracteres ANSI sin usar la opción -r
+          # Imprime el contenido de cypress_output.txt para depurar
+          echo "Contenido de cypress_output.txt:"
+          cat cypress_output.txt
+
+          # Elimina caracteres ANSI
           CLEAN_OUTPUT=$(sed 's/\x1B\[[0-9;]*[mG]//g' cypress_output.txt)
           
           # Extrae la URL del Dashboard de Cypress
@@ -41,7 +45,7 @@ jobs:
           # Verifica si CYPRESS_URL tiene contenido antes de continuar
           if [ -z "$CYPRESS_URL" ]; then
             echo "No se encontró la URL del Dashboard de Cypress."
-            exit 1  # Sale con un error si no se encuentra la URL
+            CYPRESS_URL="URL no disponible"  # Asigna un valor por defecto si no se encuentra la URL
           fi
 
           echo "CYPRESS_URL es $CYPRESS_URL"
