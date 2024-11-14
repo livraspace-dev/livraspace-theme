@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
+      CYPRESS_DASHBOARD_URL: ${{ secrets.CYPRESS_DASHBOARD_URL }} # Opcional: asigna aquí una URL fija si tienes una clave secreta
 
     steps:
       - name: Checkout code
@@ -35,11 +36,16 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
+          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
         run: |
-          if [ -z "$LATEST_RELEASE_URL" ]; then
-            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se encontró un release reciente."
+          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
+            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se encontró una URL del Dashboard de Cypress."
           else
-            MESSAGE="El flujo de trabajo de CI se ha completado. Último release: $LATEST_RELEASE_URL"
+            MESSAGE="El flujo de trabajo de CI se ha completado. Revisa el Dashboard de Cypress: $CYPRESS_DASHBOARD_URL"
+          fi
+
+          if [ -n "$LATEST_RELEASE_URL" ]; then
+            MESSAGE="$MESSAGE y el último release: $LATEST_RELEASE_URL"
           fi
 
           echo "Enviando mensaje a Slack: $MESSAGE"
