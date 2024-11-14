@@ -38,7 +38,7 @@ jobs:
           fi
 
       - name: Save Cypress Dashboard URL artifact
-        if: github.event_name != 'workflow_dispatch' && -f cypress_url_cache.txt
+        if: github.event_name != 'workflow_dispatch'
         uses: actions/upload-artifact@v3
         with:
           name: cypress-url
@@ -52,10 +52,14 @@ jobs:
           path: .
 
       - name: Set Cypress Dashboard URL environment variable
-        if: github.event_name == 'workflow_dispatch' && -f cypress_url_cache.txt
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          CYPRESS_DASHBOARD_URL=$(cat cypress_url_cache.txt)
-          echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
+          if [ -f cypress_url_cache.txt ]; then
+            CYPRESS_DASHBOARD_URL=$(cat cypress_url_cache.txt)
+            echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
+          else
+            echo "No se encontró una URL de Cypress previa."
+          fi
 
       - name: Get latest release URL
         run: |
