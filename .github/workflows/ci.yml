@@ -2,7 +2,7 @@ name: Notify Slack
 
 on:
   workflow_dispatch:
-
+ 
 jobs:
   notify:
     runs-on: ubuntu-latest
