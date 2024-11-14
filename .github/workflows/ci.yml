@@ -8,12 +8,29 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_PROJECT_ID: "ivi6aw"  # Reemplaza con tu Cypress Project ID
       CYPRESS_API_TOKEN: ${{ secrets.CYPRESS_API_TOKEN }}
 
     steps:
-      - name: Install jq (JSON processor)
-        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Read Cypress project ID
+        run: |
+          if [ -f "cypress.json" ]; then
+            PROJECT_ID=$(cat cypress.json | jq -r '.projectId')
+          elif [ -f "cypress.config.js" ]; then
+            PROJECT_ID=$(node -e "console.log(require('./cypress.config').default.projectId)")
+          else
+            echo "No se encontró cypress.json ni cypress.config.js"
+            exit 1
+          fi
+          echo "PROJECT_ID es $PROJECT_ID"
+          echo "CYPRESS_PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
       - name: Get latest Cypress Dashboard URL
         run: |
@@ -21,7 +38,7 @@ jobs:
           AUTH_TOKEN="${{ env.CYPRESS_API_TOKEN }}"
           RESPONSE=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" \
             "https://api.cypress.io/v1/projects/$PROJECT_ID/runs?limit=1")
-          LAST_RUN_ID=$(echo "$RESPONSE" | jq -r '.runs[0].id')
+          LAST_RUN_ID=$(echo "$RESPONSE" | jq -r '.runs[0].buildNumber')
           if [ "$LAST_RUN_ID" != "null" ]; then
             CYPRESS_DASHBOARD_URL="https://dashboard.cypress.io/projects/$PROJECT_ID/runs/$LAST_RUN_ID"
             echo "CYPRESS_DASHBOARD_URL=$CYPRESS_DASHBOARD_URL" >> $GITHUB_ENV
@@ -48,7 +65,9 @@ jobs:
             MESSAGE="El flujo de trabajo de CI se ha completado. Revisa los resultados del último test de Cypress: $CYPRESS_DASHBOARD_URL"
           fi
 
-          MESSAGE="$MESSAGE y el último release: $LATEST_RELEASE_URL"
+          if [ -n "$LATEST_RELEASE_URL" ]; then
+            MESSAGE="$MESSAGE y el último release: $LATEST_RELEASE_URL"
+          fi
 
           curl -X POST -H 'Content-type: application/json' \
           --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK
