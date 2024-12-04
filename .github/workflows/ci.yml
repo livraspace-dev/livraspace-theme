@@ -4,23 +4,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  notify-release:
     runs-on: ubuntu-latest
     env:
       SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
-      CYPRESS_DASHBOARD_URL: "https://cloud.cypress.io/projects/ivi6aw/runs"  # Reemplaza {projectId} con el ID de tu proyecto
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Install dependencies
-        run: npm install
 
       - name: Install jq (JSON processor)
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -30,25 +21,18 @@ jobs:
           LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.html_url')
           echo "LATEST_RELEASE_URL=$LATEST_RELEASE_URL" >> $GITHUB_ENV
         shell: bash
-        continue-on-error: true
 
       - name: Send notification to Slack
         env:
           SLACK_WEBHOOK: ${{ secrets.CYPRESSNOTIFIER }}
           LATEST_RELEASE_URL: ${{ env.LATEST_RELEASE_URL }}
-          CYPRESS_DASHBOARD_URL: ${{ env.CYPRESS_DASHBOARD_URL }}
         run: |
-          if [ -z "$CYPRESS_DASHBOARD_URL" ]; then
-            MESSAGE="El flujo de trabajo de CI se ha completado, pero no se encontró una URL del Dashboard de Cypress."
-          else
-            MESSAGE="El flujo de trabajo de CI se ha completado. Revisa el Dashboard de Cypress: $CYPRESS_DASHBOARD_URL"
-          fi
-
           if [ -n "$LATEST_RELEASE_URL" ]; then
-            MESSAGE="$MESSAGE y el último release: $LATEST_RELEASE_URL"
+            MESSAGE="El último release está disponible: $LATEST_RELEASE_URL"
+            echo "Enviando mensaje a Slack: $MESSAGE"
+            curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK
+          else
+            echo "No se encontró una URL del último release."
           fi
-
-          echo "Enviando mensaje a Slack: $MESSAGE"
-          curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK
         shell: bash
